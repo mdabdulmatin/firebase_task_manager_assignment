@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if false;
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && request.resource.data.keys().hasAll([
+            'title',
+            'description',
+            'dueDate',
+            'priority',
+            'completed',
+            'createdAt',
+            'userId'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'title',
+            'description',
+            'dueDate',
+            'priority',
+            'completed',
+            'createdAt',
+            'userId',
+            'courseBucket'
+          ])
+          && request.resource.data.title is string
+          && request.resource.data.description is string
+          && request.resource.data.dueDate is timestamp
+          && request.resource.data.priority in ['low', 'medium', 'high']
+          && request.resource.data.completed is bool
+          && request.resource.data.createdAt is timestamp
+          && (!('courseBucket' in request.resource.data)
+            || request.resource.data.courseBucket is string);
+
+        allow update: if isOwner(userId)
+          && request.resource.data.userId == userId
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.keys().hasOnly([
+            'title',
+            'description',
+            'dueDate',
+            'priority',
+            'completed',
+            'createdAt',
+            'userId',
+            'courseBucket'
+          ])
+          && request.resource.data.title is string
+          && request.resource.data.description is string
+          && request.resource.data.dueDate is timestamp
+          && request.resource.data.priority in ['low', 'medium', 'high']
+          && request.resource.data.completed is bool
+          && (!('courseBucket' in request.resource.data)
+            || request.resource.data.courseBucket is string);
+
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
